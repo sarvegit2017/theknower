@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+    
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background-color: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    h1 {
+      color: #2c3e50;
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    
+    .dropdown {
+      position: relative;
+      width: 100%;
+      margin-bottom: 20px;
+    }
+    
+    select {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      background-color: white;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    
+    select:focus {
+      outline: none;
+      border-color: #3498db;
+    }
+    
+    .questions-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    
+    .questions-table th,
+    .questions-table td {
+      padding: 10px;
+      border: 1px solid #ddd;
+      text-align: left;
+    }
+    
+    .questions-table th {
+      background-color: #f2f2f2;
+      font-weight: bold;
+    }
+    
+    .questions-table tr:nth-child(even) {
+      background-color: #f9f9f9;
+    }
+    
+    .questions-table tr:hover {
+      background-color: #f5f5f5;
+    }
+    
+    #tableContainer {
+      margin-top: 20px;
+      display: none;
+    }
+    
+    .loading {
+      text-align: center;
+      padding: 20px;
+      font-style: italic;
+      color: #666;
+    }
+    
+    .category-cell {
+      background-color: #f0f7ff;
+    }
+    
+    .button {
+      background-color: #3498db;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      text-align: center;
+      text-decoration: none;
+      display: inline-block;
+      font-size: 16px;
+      margin: 10px 0;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: background-color 0.3s;
+    }
+    
+    .button:hover {
+      background-color: #2980b9;
+    }
+    
+    .button:disabled {
+      background-color: #cccccc;
+      cursor: not-allowed;
+    }
+    
+    #startButtonContainer {
+      text-align: center;
+      margin-top: 10px;
+      margin-bottom: 20px;
+      display: none;
+    }
+    
+    #questionDisplay {
+      margin: 20px 0;
+      padding: 15px;
+      background-color: #f9f9f9;
+      border-radius: 5px;
+      border-left: 5px solid #3498db;
+      display: none;
+    }
+    
+    #questionDisplay p {
+      margin: 5px 0;
+      font-size: 16px;
+    }
+    
+    #questionDisplay .question-label {
+      font-weight: bold;
+      color: #2c3e50;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Think Trek</h1>
+    
+    <div class="dropdown">
+      <select id="options">
+        <option value="" disabled selected>Select a category</option>
+        <!-- Categories will be loaded dynamically -->
+      </select>
+    </div>
+    
+    <div id="startButtonContainer">
+      <button id="startButton" class="button">Start Quiz</button>
+    </div>
+    
+    <div id="questionDisplay">
+      <p><span class="question-label">Question:</span> <span id="currentQuestion"></span></p>
+    </div>
+    
+    <div id="tableContainer">
+      <div id="loading" class="loading">Loading questions...</div>
+      <table id="questionsTable" class="questions-table">
+        <thead>
+          <tr>
+            <th>SL#</th>
+            <th>Category</th>
+            <th>Question</th>
+          </tr>
+        </thead>
+        <tbody id="questionsBody">
+          <!-- Questions will be loaded here -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    // Global variable to store the loaded questions
+    var loadedQuestions = [];
+    
+    // Load categories when the page loads
+    window.onload = function() {
+      google.script.run.withSuccessHandler(populateDropdown).getUniqueCategories();
+    };
+    
+    // Function to populate the dropdown with categories
+    function populateDropdown(categories) {
+      var dropdown = document.getElementById('options');
+      
+      categories.forEach(function(category) {
+        var option = document.createElement('option');
+        option.value = category;
+        option.textContent = category;
+        dropdown.appendChild(option);
+      });
+    }
+    
+    // Add functionality to the dropdown
+    document.getElementById('options').addEventListener('change', function() {
+      var selectedCategory = this.value;
+      var tableContainer = document.getElementById('tableContainer');
+      var loading = document.getElementById('loading');
+      var startButtonContainer = document.getElementById('startButtonContainer');
+      var questionDisplay = document.getElementById('questionDisplay');
+      
+      // Show the table container and loading message
+      tableContainer.style.display = 'block';
+      loading.style.display = 'block';
+      
+      // Hide the question display and reset the current question
+      questionDisplay.style.display = 'none';
+      document.getElementById('currentQuestion').textContent = '';
+      
+      // Clear previous questions
+      document.getElementById('questionsBody').innerHTML = '';
+      
+      // Fetch questions for the selected category
+      google.script.run
+        .withSuccessHandler(function(questions) {
+          loadedQuestions = questions; // Store the questions globally
+          displayQuestions(questions);
+          loading.style.display = 'none';
+          
+          // Show the start button only if questions are loaded
+          startButtonContainer.style.display = questions.length > 0 ? 'block' : 'none';
+        })
+        .withFailureHandler(function(error) {
+          document.getElementById('questionsBody').innerHTML = 
+            '<tr><td colspan="3" style="text-align: center; color: red;">Error loading questions: ' + error + '</td></tr>';
+          loading.style.display = 'none';
+          startButtonContainer.style.display = 'none'; // Hide start button on error
+        })
+        .getQuestionsByCategory(selectedCategory);
+    });
+    
+    // Function to display questions in the table
+    function displayQuestions(questions) {
+      var tableBody = document.getElementById('questionsBody');
+      
+      if (questions.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="3" style="text-align: center;">No questions found for this category</td></tr>';
+        return;
+      }
+      
+      // Create table rows for each question
+      questions.forEach(function(item) {
+        var row = document.createElement('tr');
+        
+        var slCell = document.createElement('td');
+        slCell.textContent = item.sl;
+        row.appendChild(slCell);
+        
+        var categoryCell = document.createElement('td');
+        categoryCell.textContent = item.category;
+        categoryCell.className = 'category-cell';
+        row.appendChild(categoryCell);
+        
+        var questionCell = document.createElement('td');
+        questionCell.textContent = item.question;
+        row.appendChild(questionCell);
+        
+        tableBody.appendChild(row);
+      });
+    }
+    
+    // Add functionality to the start button
+    document.getElementById('startButton').addEventListener('click', function() {
+      if (loadedQuestions.length > 0) {
+        // Get a random question from the loaded questions
+        var randomIndex = Math.floor(Math.random() * loadedQuestions.length);
+        var randomQuestion = loadedQuestions[randomIndex];
+        
+        // Display the selected question
+        document.getElementById('currentQuestion').textContent = randomQuestion.question;
+        document.getElementById('questionDisplay').style.display = 'block';
+      }
+    });
+  </script>
+</body>
+</html>
