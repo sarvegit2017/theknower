@@ -61,3 +61,31 @@ function getQuestionsByCategory(category) {
   // Return only the first 5 questions
   return questions.slice(0, 5);
 }
+
+function getAnswerForQuestion(slNumber) {
+  // Open the spreadsheet and get the 'datastore' sheet
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName('datastore');
+  
+  // Get all data from the sheet
+  const data = sheet.getDataRange().getValues();
+  
+  // Get header row and find column indices
+  const headers = data[0];
+  const slIndex = headers.indexOf('SL#');
+  const answerIndex = headers.indexOf('Answers');
+  
+  // Check if required columns exist
+  if (slIndex === -1 || answerIndex === -1) {
+    return "Required columns not found";
+  }
+  
+  // Find the row with the matching SL# (skip header row)
+  const matchingRow = data.slice(1).find(row => row[slIndex] == slNumber);
+  
+  if (!matchingRow) {
+    return "Answer not found";
+  }
+  
+  return matchingRow[answerIndex];
+}

@@ -97,7 +97,7 @@
       text-decoration: none;
       display: inline-block;
       font-size: 16px;
-      margin: 10px 0;
+      margin: 10px 5px;
       cursor: pointer;
       border-radius: 4px;
       transition: background-color 0.3s;
@@ -137,6 +137,31 @@
       font-weight: bold;
       color: #2c3e50;
     }
+    
+    #answerDisplay {
+      margin: 10px 0;
+      padding: 15px;
+      background-color: #f0fff0;
+      border-radius: 5px;
+      border-left: 5px solid #27ae60;
+      display: none;
+    }
+    
+    #answerDisplay p {
+      margin: 5px 0;
+      font-size: 16px;
+    }
+    
+    #answerDisplay .answer-label {
+      font-weight: bold;
+      color: #27ae60;
+    }
+    
+    #answerButtonContainer {
+      text-align: center;
+      margin-top: 10px;
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -156,6 +181,14 @@
     
     <div id="questionDisplay">
       <p><span class="question-label">Question:</span> <span id="currentQuestion"></span></p>
+    </div>
+    
+    <div id="answerButtonContainer">
+      <button id="toggleAnswerButton" class="button">Show Answer</button>
+    </div>
+    
+    <div id="answerDisplay">
+      <p><span class="answer-label">Answer:</span> <span id="currentAnswer"></span></p>
     </div>
     
     <div id="tableContainer">
@@ -203,14 +236,20 @@
       var loading = document.getElementById('loading');
       var startButtonContainer = document.getElementById('startButtonContainer');
       var questionDisplay = document.getElementById('questionDisplay');
+      var answerButtonContainer = document.getElementById('answerButtonContainer');
+      var answerDisplay = document.getElementById('answerDisplay');
       
       // Show the table container and loading message
       tableContainer.style.display = 'block';
       loading.style.display = 'block';
       
-      // Hide the question display and reset the current question
+      // Hide the question display, answer display, and answer button
       questionDisplay.style.display = 'none';
+      answerButtonContainer.style.display = 'none';
+      answerDisplay.style.display = 'none';
       document.getElementById('currentQuestion').textContent = '';
+      document.getElementById('currentAnswer').textContent = '';
+      document.getElementById('toggleAnswerButton').textContent = 'Show Answer';
       
       // Clear previous questions
       document.getElementById('questionsBody').innerHTML = '';
@@ -274,6 +313,35 @@
         // Display the selected question
         document.getElementById('currentQuestion').textContent = randomQuestion.question;
         document.getElementById('questionDisplay').style.display = 'block';
+        
+        // Show the answer button
+        document.getElementById('answerButtonContainer').style.display = 'block';
+        
+        // Hide the answer if it was previously shown
+        document.getElementById('answerDisplay').style.display = 'none';
+        document.getElementById('toggleAnswerButton').textContent = 'Show Answer';
+        
+        // Get the answer for this question
+        google.script.run
+          .withSuccessHandler(function(answer) {
+            document.getElementById('currentAnswer').textContent = answer;
+          })
+          .getAnswerForQuestion(randomQuestion.sl);
+      }
+    });
+    
+    // Add functionality to the toggle answer button
+    document.getElementById('toggleAnswerButton').addEventListener('click', function() {
+      var answerDisplay = document.getElementById('answerDisplay');
+      
+      if (answerDisplay.style.display === 'none' || answerDisplay.style.display === '') {
+        // Show the answer
+        answerDisplay.style.display = 'block';
+        this.textContent = 'Hide Answer';
+      } else {
+        // Hide the answer
+        answerDisplay.style.display = 'none';
+        this.textContent = 'Show Answer';
       }
     });
   </script>
