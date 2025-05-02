@@ -1,0 +1,137 @@
+<script>
+  // Global variable to store the loaded questions
+  var loadedQuestions = [];
+  
+  // Load categories when the page loads
+  window.onload = function() {
+    google.script.run.withSuccessHandler(populateDropdown).getUniqueCategories();
+  };
+  
+  // Function to populate the dropdown with categories
+  function populateDropdown(categories) {
+    var dropdown = document.getElementById('options');
+    
+    categories.forEach(function(category) {
+      var option = document.createElement('option');
+      option.value = category;
+      option.textContent = category;
+      dropdown.appendChild(option);
+    });
+  }
+  
+  // Add functionality to the dropdown
+  document.getElementById('options').addEventListener('change', function() {
+    var selectedCategory = this.value;
+    var tableContainer = document.getElementById('tableContainer');
+    var loading = document.getElementById('loading');
+    var startButtonContainer = document.getElementById('startButtonContainer');
+    var questionDisplay = document.getElementById('questionDisplay');
+    var answerButtonContainer = document.getElementById('answerButtonContainer');
+    var answerDisplay = document.getElementById('answerDisplay');
+    
+    // Show the table container and loading message
+    tableContainer.style.display = 'block';
+    loading.style.display = 'block';
+    
+    // Hide the question display, answer display, and answer button
+    questionDisplay.style.display = 'none';
+    answerButtonContainer.style.display = 'none';
+    answerDisplay.style.display = 'none';
+    document.getElementById('currentQuestion').textContent = '';
+    document.getElementById('currentAnswer').textContent = '';
+    document.getElementById('toggleAnswerButton').textContent = 'Show Answer';
+    
+    // Clear previous questions
+    document.getElementById('questionsBody').innerHTML = '';
+    
+    // Fetch questions for the selected category
+    google.script.run
+      .withSuccessHandler(function(questions) {
+        loadedQuestions = questions; // Store the questions globally
+        displayQuestions(questions);
+        loading.style.display = 'none';
+        
+        // Show the start button only if questions are loaded
+        startButtonContainer.style.display = questions.length > 0 ? 'block' : 'none';
+      })
+      .withFailureHandler(function(error) {
+        document.getElementById('questionsBody').innerHTML = 
+          '<tr><td colspan="3" style="text-align: center; color: red;">Error loading questions: ' + error + '</td></tr>';
+        loading.style.display = 'none';
+        startButtonContainer.style.display = 'none'; // Hide start button on error
+      })
+      .getQuestionsByCategory(selectedCategory);
+  });
+  
+  // Function to display questions in the table
+  function displayQuestions(questions) {
+    var tableBody = document.getElementById('questionsBody');
+    
+    if (questions.length === 0) {
+      tableBody.innerHTML = '<tr><td colspan="3" style="text-align: center;">No questions found for this category</td></tr>';
+      return;
+    }
+    
+    // Create table rows for each question
+    questions.forEach(function(item) {
+      var row = document.createElement('tr');
+      
+      var slCell = document.createElement('td');
+      slCell.textContent = item.sl;
+      row.appendChild(slCell);
+      
+      var categoryCell = document.createElement('td');
+      categoryCell.textContent = item.category;
+      categoryCell.className = 'category-cell';
+      row.appendChild(categoryCell);
+      
+      var questionCell = document.createElement('td');
+      questionCell.textContent = item.question;
+      row.appendChild(questionCell);
+      
+      tableBody.appendChild(row);
+    });
+  }
+  
+  // Add functionality to the start button
+  document.getElementById('startButton').addEventListener('click', function() {
+    if (loadedQuestions.length > 0) {
+      // Get a random question from the loaded questions
+      var randomIndex = Math.floor(Math.random() * loadedQuestions.length);
+      var randomQuestion = loadedQuestions[randomIndex];
+      
+      // Display the selected question
+      document.getElementById('currentQuestion').textContent = randomQuestion.question;
+      document.getElementById('questionDisplay').style.display = 'block';
+      
+      // Show the answer button
+      document.getElementById('answerButtonContainer').style.display = 'block';
+      
+      // Hide the answer if it was previously shown
+      document.getElementById('answerDisplay').style.display = 'none';
+      document.getElementById('toggleAnswerButton').textContent = 'Show Answer';
+      
+      // Get the answer for this question
+      google.script.run
+        .withSuccessHandler(function(answer) {
+          document.getElementById('currentAnswer').textContent = answer;
+        })
+        .getAnswerForQuestion(randomQuestion.sl);
+    }
+  });
+  
+  // Add functionality to the toggle answer button
+  document.getElementById('toggleAnswerButton').addEventListener('click', function() {
+    var answerDisplay = document.getElementById('answerDisplay');
+    
+    if (answerDisplay.style.display === 'none' || answerDisplay.style.display === '') {
+      // Show the answer
+      answerDisplay.style.display = 'block';
+      this.textContent = 'Hide Answer';
+    } else {
+      // Hide the answer
+      answerDisplay.style.display = 'none';
+      this.textContent = 'Show Answer';
+    }
+  });
+</script>
