@@ -1,12 +1,14 @@
 <script>
-  // Global variable to store the loaded questions
+  // Global variables to store questions and state
   var loadedQuestions = [];
-  // Global variable to track the current question
   var currentQuestion = null;
+  var wrongQuestions = []; // Store the wrong questions
   
   // Load categories when the page loads
   window.onload = function() {
     google.script.run.withSuccessHandler(populateDropdown).getUniqueCategories();
+    // Hide retry button initially
+    document.getElementById('retryButtonContainer').style.display = 'none';
   };
   
   // Function to populate the dropdown with categories
@@ -31,6 +33,7 @@
     var answerButtonContainer = document.getElementById('answerButtonContainer');
     var answerDisplay = document.getElementById('answerDisplay');
     var feedbackButtonContainer = document.getElementById('feedbackButtonContainer');
+    var retryButtonContainer = document.getElementById('retryButtonContainer');
     
     // Show the table container and loading message
     tableContainer.style.display = 'block';
@@ -41,6 +44,7 @@
     answerButtonContainer.style.display = 'none';
     answerDisplay.style.display = 'none';
     feedbackButtonContainer.style.display = 'none';
+    retryButtonContainer.style.display = 'none';
     document.getElementById('currentQuestion').textContent = '';
     document.getElementById('currentAnswer').textContent = '';
     document.getElementById('toggleAnswerButton').textContent = 'Show Answer';
@@ -48,8 +52,9 @@
     // Clear previous questions
     document.getElementById('questionsBody').innerHTML = '';
     
-    // Reset currentQuestion
+    // Reset state
     currentQuestion = null;
+    wrongQuestions = []; // Clear wrong questions when changing category
     
     // Fetch questions for the selected category
     google.script.run
@@ -117,6 +122,12 @@
       document.getElementById('questionDisplay').style.display = 'block';
       document.getElementById('answerButtonContainer').style.display = 'none';
       document.getElementById('feedbackButtonContainer').style.display = 'none';
+      
+      // If there are wrong questions, show retry button
+      if (wrongQuestions.length > 0) {
+        document.getElementById('retryButtonContainer').style.display = 'block';
+      }
+      
       return;
     }
     
@@ -133,6 +144,9 @@
     
     // Show the feedback buttons
     document.getElementById('feedbackButtonContainer').style.display = 'block';
+    
+    // Hide the retry button while answering questions
+    document.getElementById('retryButtonContainer').style.display = 'none';
     
     // Hide the answer if it was previously shown
     document.getElementById('answerDisplay').style.display = 'none';
@@ -162,19 +176,28 @@
   });
   
   // Add functionality to the Right button
-  document.getElementById('rightButton').addEventListener('click', handleFeedback);
+  document.getElementById('rightButton').addEventListener('click', function() {
+    handleFeedback(true);
+  });
   
   // Add functionality to the Wrong button
-  document.getElementById('wrongButton').addEventListener('click', handleFeedback);
+  document.getElementById('wrongButton').addEventListener('click', function() {
+    handleFeedback(false);
+  });
   
   // Function to handle both Right and Wrong button clicks
-  function handleFeedback() {
+  function handleFeedback(isCorrect) {
     if (currentQuestion) {
       // Find and remove the row with matching SL# from the table
       var sl = currentQuestion.sl;
       var rowToRemove = document.querySelector('tr[data-sl="' + sl + '"]');
       if (rowToRemove) {
         rowToRemove.remove();
+      }
+      
+      // If wrong answer, add to wrongQuestions array
+      if (!isCorrect) {
+        wrongQuestions.push(currentQuestion);
       }
       
       // Remove the question from the loadedQuestions array
@@ -187,4 +210,22 @@
       showRandomQuestion();
     }
   }
+  
+  // Add functionality to the Retry button
+  document.getElementById('retryButton').addEventListener('click', function() {
+    if (wrongQuestions.length > 0) {
+      // Move wrong questions back to loadedQuestions
+      loadedQuestions = [...wrongQuestions];
+      wrongQuestions = []; // Clear wrong questions
+      
+      // Hide retry button
+      document.getElementById('retryButtonContainer').style.display = 'none';
+      
+      // Show questions in table
+      displayQuestions(loadedQuestions);
+      
+      // Show a random question
+      showRandomQuestion();
+    }
+  });
 </script>
