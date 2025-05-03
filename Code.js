@@ -64,8 +64,29 @@ function getQuestionsByCategory(category) {
     question: row[questionIndex]
   }));
   
-  // Return only the first 5 questions
-  return questions.slice(0, 5);
+  // Randomly select 5 questions (or all if there are fewer than 5)
+  const randomlySelectedQuestions = getRandomItems(questions, 5);
+  
+  return randomlySelectedQuestions;
+}
+
+// Helper function to get random items from an array
+function getRandomItems(array, count) {
+  // Create a copy of the array to avoid modifying the original
+  const arrayCopy = [...array];
+  const result = [];
+  const maxItems = Math.min(count, arrayCopy.length);
+  
+  // Randomly select items
+  for (let i = 0; i < maxItems; i++) {
+    // Generate a random index between 0 and the current array length
+    const randomIndex = Math.floor(Math.random() * arrayCopy.length);
+    
+    // Move the selected item to the result array
+    result.push(arrayCopy.splice(randomIndex, 1)[0]);
+  }
+  
+  return result;
 }
 
 function getAnswerForQuestion(slNumber) {
