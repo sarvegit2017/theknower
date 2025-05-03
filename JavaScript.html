@@ -1,6 +1,8 @@
 <script>
   // Global variable to store the loaded questions
   var loadedQuestions = [];
+  // Global variable to track the current question
+  var currentQuestion = null;
   
   // Load categories when the page loads
   window.onload = function() {
@@ -28,21 +30,26 @@
     var questionDisplay = document.getElementById('questionDisplay');
     var answerButtonContainer = document.getElementById('answerButtonContainer');
     var answerDisplay = document.getElementById('answerDisplay');
+    var feedbackButtonContainer = document.getElementById('feedbackButtonContainer');
     
     // Show the table container and loading message
     tableContainer.style.display = 'block';
     loading.style.display = 'block';
     
-    // Hide the question display, answer display, and answer button
+    // Hide the question display, answer display, and buttons
     questionDisplay.style.display = 'none';
     answerButtonContainer.style.display = 'none';
     answerDisplay.style.display = 'none';
+    feedbackButtonContainer.style.display = 'none';
     document.getElementById('currentQuestion').textContent = '';
     document.getElementById('currentAnswer').textContent = '';
     document.getElementById('toggleAnswerButton').textContent = 'Show Answer';
     
     // Clear previous questions
     document.getElementById('questionsBody').innerHTML = '';
+    
+    // Reset currentQuestion
+    currentQuestion = null;
     
     // Fetch questions for the selected category
     google.script.run
@@ -66,6 +73,7 @@
   // Function to display questions in the table
   function displayQuestions(questions) {
     var tableBody = document.getElementById('questionsBody');
+    tableBody.innerHTML = '';
     
     if (questions.length === 0) {
       tableBody.innerHTML = '<tr><td colspan="3" style="text-align: center;">No questions found for this category</td></tr>';
@@ -75,6 +83,7 @@
     // Create table rows for each question
     questions.forEach(function(item) {
       var row = document.createElement('tr');
+      row.setAttribute('data-sl', item.sl); // Store the SL# as a data attribute
       
       var slCell = document.createElement('td');
       slCell.textContent = item.sl;
@@ -96,29 +105,46 @@
   // Add functionality to the start button
   document.getElementById('startButton').addEventListener('click', function() {
     if (loadedQuestions.length > 0) {
-      // Get a random question from the loaded questions
-      var randomIndex = Math.floor(Math.random() * loadedQuestions.length);
-      var randomQuestion = loadedQuestions[randomIndex];
-      
-      // Display the selected question
-      document.getElementById('currentQuestion').textContent = randomQuestion.question;
-      document.getElementById('questionDisplay').style.display = 'block';
-      
-      // Show the answer button
-      document.getElementById('answerButtonContainer').style.display = 'block';
-      
-      // Hide the answer if it was previously shown
-      document.getElementById('answerDisplay').style.display = 'none';
-      document.getElementById('toggleAnswerButton').textContent = 'Show Answer';
-      
-      // Get the answer for this question
-      google.script.run
-        .withSuccessHandler(function(answer) {
-          document.getElementById('currentAnswer').textContent = answer;
-        })
-        .getAnswerForQuestion(randomQuestion.sl);
+      showRandomQuestion();
     }
   });
+  
+  // Function to show a random question
+  function showRandomQuestion() {
+    if (loadedQuestions.length === 0) {
+      // No more questions left
+      document.getElementById('currentQuestion').textContent = "No more questions available!";
+      document.getElementById('questionDisplay').style.display = 'block';
+      document.getElementById('answerButtonContainer').style.display = 'none';
+      document.getElementById('feedbackButtonContainer').style.display = 'none';
+      return;
+    }
+    
+    // Get a random question from the loaded questions
+    var randomIndex = Math.floor(Math.random() * loadedQuestions.length);
+    currentQuestion = loadedQuestions[randomIndex];
+    
+    // Display the selected question
+    document.getElementById('currentQuestion').textContent = currentQuestion.question;
+    document.getElementById('questionDisplay').style.display = 'block';
+    
+    // Show the answer button
+    document.getElementById('answerButtonContainer').style.display = 'block';
+    
+    // Show the feedback buttons
+    document.getElementById('feedbackButtonContainer').style.display = 'block';
+    
+    // Hide the answer if it was previously shown
+    document.getElementById('answerDisplay').style.display = 'none';
+    document.getElementById('toggleAnswerButton').textContent = 'Show Answer';
+    
+    // Get the answer for this question
+    google.script.run
+      .withSuccessHandler(function(answer) {
+        document.getElementById('currentAnswer').textContent = answer;
+      })
+      .getAnswerForQuestion(currentQuestion.sl);
+  }
   
   // Add functionality to the toggle answer button
   document.getElementById('toggleAnswerButton').addEventListener('click', function() {
@@ -134,4 +160,31 @@
       this.textContent = 'Show Answer';
     }
   });
+  
+  // Add functionality to the Right button
+  document.getElementById('rightButton').addEventListener('click', handleFeedback);
+  
+  // Add functionality to the Wrong button
+  document.getElementById('wrongButton').addEventListener('click', handleFeedback);
+  
+  // Function to handle both Right and Wrong button clicks
+  function handleFeedback() {
+    if (currentQuestion) {
+      // Find and remove the row with matching SL# from the table
+      var sl = currentQuestion.sl;
+      var rowToRemove = document.querySelector('tr[data-sl="' + sl + '"]');
+      if (rowToRemove) {
+        rowToRemove.remove();
+      }
+      
+      // Remove the question from the loadedQuestions array
+      loadedQuestions = loadedQuestions.filter(function(question) {
+        return question.sl !== sl;
+      });
+      
+      // Show the next random question
+      currentQuestion = null;
+      showRandomQuestion();
+    }
+  }
 </script>
