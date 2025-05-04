@@ -215,8 +215,10 @@ function getTopIncorrectAnswers(limit = 10) {
 function recordCorrectAnswer(slNumber, isRetryMode = false) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   
-  // Always track correct streak for mastery purposes, regardless of retry mode
-  trackCorrectStreak(slNumber);
+  // Only track correct streak for mastery if not in retry mode
+  if (!isRetryMode) {
+    trackCorrectStreak(slNumber);
+  }
   
   // If in retry mode, don't reduce the wrong count
   if (isRetryMode) {
@@ -337,10 +339,39 @@ function resetCorrectStreak(slNumber) {
   return true;
 }
 
+// Check if the question has any wrong answers recorded
+function hasWrongAnswers(slNumber) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  
+  // Check if the wrong_answers sheet exists
+  let wrongAnswersSheet = ss.getSheetByName('wrong_answers');
+  if (!wrongAnswersSheet) {
+    return false; // No wrong answers sheet exists, so no wrong answers
+  }
+  
+  // Get all data from wrong_answers sheet
+  const wrongAnswersData = wrongAnswersSheet.getDataRange().getValues();
+  
+  // Find if this question exists in wrong_answers
+  for (let i = 1; i < wrongAnswersData.length; i++) {
+    if (wrongAnswersData[i][0] == slNumber) {
+      return true; // Found the question in wrong_answers
+    }
+  }
+  
+  return false; // Question not found in wrong_answers
+}
+
 // Function to move question to expert sheet
 function moveToExpertSheet(slNumber) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const datastoreSheet = ss.getSheetByName('datastore');
+  
+  // First check if the question has any wrong answers
+  if (hasWrongAnswers(slNumber)) {
+    // If it has wrong answers, don't move it to expert yet
+    return false;
+  }
   
   // Check if the expert sheet exists, if not create it
   let expertSheet = ss.getSheetByName('expert');
