@@ -274,9 +274,28 @@ function trackCorrectStreak(slNumber) {
   if (!masterySheet) {
     // Create the sheet and set up headers
     masterySheet = ss.insertSheet('mastery_tracking');
-    masterySheet.appendRow(['SL#', 'Correct Streak']);
-    masterySheet.getRange(1, 1, 1, 2).setFontWeight('bold');
+    masterySheet.appendRow(['SL#', 'Category', 'Question', 'Correct Streak']);
+    masterySheet.getRange(1, 1, 1, 4).setFontWeight('bold');
   }
+  
+  // Get the datastore sheet to look up question details
+  const datastoreSheet = ss.getSheetByName('datastore');
+  const datastoreData = datastoreSheet.getDataRange().getValues();
+  
+  // Find headers in datastore
+  const datastoreHeaders = datastoreData[0];
+  const slIndex = datastoreHeaders.indexOf('SL#');
+  const categoryIndex = datastoreHeaders.indexOf('Category');
+  const questionIndex = datastoreHeaders.indexOf('Questions');
+  
+  // Find the question details in datastore
+  const questionRow = datastoreData.slice(1).find(row => row[slIndex] == slNumber);
+  if (!questionRow) {
+    return false; // Question not found
+  }
+  
+  const category = questionRow[categoryIndex];
+  const question = questionRow[questionIndex];
   
   // Get all data from mastery_tracking sheet
   const masteryData = masterySheet.getDataRange().getValues();
@@ -292,9 +311,9 @@ function trackCorrectStreak(slNumber) {
   
   if (existingRowIndex !== -1) {
     // Update existing record - increment streak
-    const currentStreak = masteryData[existingRowIndex][1];
+    const currentStreak = masteryData[existingRowIndex][3]; // Now in column 4
     const newStreak = currentStreak + 1;
-    masterySheet.getRange(existingRowIndex + 1, 2).setValue(newStreak);
+    masterySheet.getRange(existingRowIndex + 1, 4).setValue(newStreak);
     
     // Check if streak is now 3
     if (newStreak >= 3) {
@@ -303,7 +322,7 @@ function trackCorrectStreak(slNumber) {
     }
   } else {
     // Add new record with streak of 1
-    masterySheet.appendRow([slNumber, 1]);
+    masterySheet.appendRow([slNumber, category, question, 1]);
   }
   
   return true;
@@ -333,7 +352,7 @@ function resetCorrectStreak(slNumber) {
   
   // If question is being tracked, reset streak to 0
   if (existingRowIndex !== -1) {
-    masterySheet.getRange(existingRowIndex + 1, 2).setValue(0);
+    masterySheet.getRange(existingRowIndex + 1, 4).setValue(0); // Now in column 4
   }
   
   return true;
