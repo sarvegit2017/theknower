@@ -207,3 +207,47 @@ function getTopIncorrectAnswers(limit = 10) {
   
   return sortedData;
 }
+
+// Function to record a correct answer and reduce wrong count if applicable
+function recordCorrectAnswer(slNumber) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  
+  // Check if the wrong_answers sheet exists
+  let wrongAnswersSheet = ss.getSheetByName('wrong_answers');
+  if (!wrongAnswersSheet) {
+    return false; // No wrong answers sheet exists
+  }
+  
+  // Get all data from wrong_answers sheet
+  const data = wrongAnswersSheet.getDataRange().getValues();
+  if (data.length <= 1) {
+    return false; // Only header row exists, no questions to update
+  }
+  
+  // Find if this question exists in wrong_answers
+  let existingRowIndex = -1;
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] == slNumber) {
+      existingRowIndex = i;
+      break;
+    }
+  }
+  
+  // If question is not in wrong_answers sheet, no action needed
+  if (existingRowIndex === -1) {
+    return false;
+  }
+  
+  // Get current wrong count
+  const currentCount = data[existingRowIndex][4];
+  
+  if (currentCount <= 1) {
+    // If count is 1 or less, remove the row entirely
+    wrongAnswersSheet.deleteRow(existingRowIndex + 1);
+  } else {
+    // Otherwise, reduce the count by 1
+    wrongAnswersSheet.getRange(existingRowIndex + 1, 5).setValue(currentCount - 1);
+  }
+  
+  return true;
+}

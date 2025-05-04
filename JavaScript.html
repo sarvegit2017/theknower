@@ -3,6 +3,7 @@
   var loadedQuestions = [];
   var currentQuestion = null;
   var wrongQuestions = []; // Store the wrong questions
+  var isRetryMode = false; // Track if we're in retry mode
   
   // Load categories when the page loads
   window.onload = function() {
@@ -55,6 +56,7 @@
     // Reset state
     currentQuestion = null;
     wrongQuestions = []; // Clear wrong questions when changing category
+    isRetryMode = false; // Reset retry mode
     
     // Fetch questions for the selected category
     google.script.run
@@ -195,8 +197,8 @@
         rowToRemove.remove();
       }
       
-      // If wrong answer, add to wrongQuestions array and record it
       if (!isCorrect) {
+        // If wrong answer, add to wrongQuestions array and record it
         wrongQuestions.push(currentQuestion);
         
         // Record the incorrect answer in the backend
@@ -209,6 +211,19 @@
             console.error("Error recording wrong answer:", error);
           })
           .recordIncorrectAnswer(sl);
+      } else {
+        // If correct answer and not during a retry session (check using the isRetryMode flag)
+        // Reduce the wrong count in the wrong_answers sheet
+        if (!isRetryMode) {
+          google.script.run
+            .withSuccessHandler(function(success) {
+              console.log("Correct answer recorded:", success);
+            })
+            .withFailureHandler(function(error) {
+              console.error("Error recording correct answer:", error);
+            })
+            .recordCorrectAnswer(sl);
+        }
       }
       
       // Remove the question from the loadedQuestions array
@@ -225,6 +240,9 @@
   // Add functionality to the Retry button
   document.getElementById('retryButton').addEventListener('click', function() {
     if (wrongQuestions.length > 0) {
+      // Set retry mode to true
+      isRetryMode = true;
+      
       // Move wrong questions back to loadedQuestions
       loadedQuestions = [...wrongQuestions];
       wrongQuestions = []; // Clear wrong questions
