@@ -174,6 +174,9 @@ function recordIncorrectAnswer(slNumber) {
     ]);
   }
   
+  // Reset correct streak for this question in mastery_tracking
+  resetCorrectStreak(slNumber);
+  
   return true;
 }
 
@@ -209,19 +212,27 @@ function getTopIncorrectAnswers(limit = 10) {
 }
 
 // Function to record a correct answer and reduce wrong count if applicable
-function recordCorrectAnswer(slNumber) {
+function recordCorrectAnswer(slNumber, isRetryMode = false) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
+  
+  // Always track correct streak for mastery purposes, regardless of retry mode
+  trackCorrectStreak(slNumber);
+  
+  // If in retry mode, don't reduce the wrong count
+  if (isRetryMode) {
+    return true;
+  }
   
   // Check if the wrong_answers sheet exists
   let wrongAnswersSheet = ss.getSheetByName('wrong_answers');
   if (!wrongAnswersSheet) {
-    return false; // No wrong answers sheet exists
+    return true; // No wrong answers sheet exists
   }
   
   // Get all data from wrong_answers sheet
   const data = wrongAnswersSheet.getDataRange().getValues();
   if (data.length <= 1) {
-    return false; // Only header row exists, no questions to update
+    return true; // Only header row exists, no questions to update
   }
   
   // Find if this question exists in wrong_answers
@@ -235,7 +246,7 @@ function recordCorrectAnswer(slNumber) {
   
   // If question is not in wrong_answers sheet, no action needed
   if (existingRowIndex === -1) {
-    return false;
+    return true;
   }
   
   // Get current wrong count
@@ -250,4 +261,133 @@ function recordCorrectAnswer(slNumber) {
   }
   
   return true;
+}
+
+// Function to track correct answer streaks
+function trackCorrectStreak(slNumber) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  
+  // Check if the mastery_tracking sheet exists, if not create it
+  let masterySheet = ss.getSheetByName('mastery_tracking');
+  if (!masterySheet) {
+    // Create the sheet and set up headers
+    masterySheet = ss.insertSheet('mastery_tracking');
+    masterySheet.appendRow(['SL#', 'Correct Streak']);
+    masterySheet.getRange(1, 1, 1, 2).setFontWeight('bold');
+  }
+  
+  // Get all data from mastery_tracking sheet
+  const masteryData = masterySheet.getDataRange().getValues();
+  
+  // Find if this question is already being tracked
+  let existingRowIndex = -1;
+  for (let i = 1; i < masteryData.length; i++) {
+    if (masteryData[i][0] == slNumber) {
+      existingRowIndex = i;
+      break;
+    }
+  }
+  
+  if (existingRowIndex !== -1) {
+    // Update existing record - increment streak
+    const currentStreak = masteryData[existingRowIndex][1];
+    const newStreak = currentStreak + 1;
+    masterySheet.getRange(existingRowIndex + 1, 2).setValue(newStreak);
+    
+    // Check if streak is now 3
+    if (newStreak >= 3) {
+      // Move question to expert sheet
+      moveToExpertSheet(slNumber);
+    }
+  } else {
+    // Add new record with streak of 1
+    masterySheet.appendRow([slNumber, 1]);
+  }
+  
+  return true;
+}
+
+// Function to reset correct streak when question is answered incorrectly
+function resetCorrectStreak(slNumber) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  
+  // Check if the mastery_tracking sheet exists
+  let masterySheet = ss.getSheetByName('mastery_tracking');
+  if (!masterySheet) {
+    return false; // No mastery tracking sheet exists
+  }
+  
+  // Get all data from mastery_tracking sheet
+  const masteryData = masterySheet.getDataRange().getValues();
+  
+  // Find if this question is being tracked
+  let existingRowIndex = -1;
+  for (let i = 1; i < masteryData.length; i++) {
+    if (masteryData[i][0] == slNumber) {
+      existingRowIndex = i;
+      break;
+    }
+  }
+  
+  // If question is being tracked, reset streak to 0
+  if (existingRowIndex !== -1) {
+    masterySheet.getRange(existingRowIndex + 1, 2).setValue(0);
+  }
+  
+  return true;
+}
+
+// Function to move question to expert sheet
+function moveToExpertSheet(slNumber) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const datastoreSheet = ss.getSheetByName('datastore');
+  
+  // Check if the expert sheet exists, if not create it
+  let expertSheet = ss.getSheetByName('expert');
+  if (!expertSheet) {
+    // Create the sheet and copy headers from datastore
+    expertSheet = ss.insertSheet('expert');
+    const datastoreHeaders = datastoreSheet.getRange(1, 1, 1, datastoreSheet.getLastColumn()).getValues();
+    expertSheet.getRange(1, 1, 1, datastoreHeaders[0].length).setValues(datastoreHeaders);
+    expertSheet.getRange(1, 1, 1, datastoreHeaders[0].length).setFontWeight('bold');
+  }
+  
+  // Get all data from datastore sheet
+  const datastoreData = datastoreSheet.getDataRange().getValues();
+  const headers = datastoreData[0];
+  const slIndex = headers.indexOf('SL#');
+  
+  // Find the row with the matching SL#
+  let datastoreRowIndex = -1;
+  for (let i = 1; i < datastoreData.length; i++) {
+    if (datastoreData[i][slIndex] == slNumber) {
+      datastoreRowIndex = i;
+      break;
+    }
+  }
+  
+  // If question is found, move it to expert sheet
+  if (datastoreRowIndex !== -1) {
+    // Copy the question data to expert sheet
+    expertSheet.appendRow(datastoreData[datastoreRowIndex]);
+    
+    // Delete the question from datastore
+    datastoreSheet.deleteRow(datastoreRowIndex + 1);
+    
+    // Also remove from mastery_tracking sheet
+    const masterySheet = ss.getSheetByName('mastery_tracking');
+    if (masterySheet) {
+      const masteryData = masterySheet.getDataRange().getValues();
+      for (let i = 1; i < masteryData.length; i++) {
+        if (masteryData[i][0] == slNumber) {
+          masterySheet.deleteRow(i + 1);
+          break;
+        }
+      }
+    }
+    
+    return true;
+  }
+  
+  return false;
 }

@@ -212,18 +212,15 @@
           })
           .recordIncorrectAnswer(sl);
       } else {
-        // If correct answer and not during a retry session (check using the isRetryMode flag)
-        // Reduce the wrong count in the wrong_answers sheet
-        if (!isRetryMode) {
-          google.script.run
-            .withSuccessHandler(function(success) {
-              console.log("Correct answer recorded:", success);
-            })
-            .withFailureHandler(function(error) {
-              console.error("Error recording correct answer:", error);
-            })
-            .recordCorrectAnswer(sl);
-        }
+        // Record the correct answer, passing the isRetryMode flag
+        google.script.run
+          .withSuccessHandler(function(success) {
+            console.log("Correct answer recorded:", success);
+          })
+          .withFailureHandler(function(error) {
+            console.error("Error recording correct answer:", error);
+          })
+          .recordCorrectAnswer(sl, isRetryMode);
       }
       
       // Remove the question from the loadedQuestions array
