@@ -195,9 +195,20 @@
         rowToRemove.remove();
       }
       
-      // If wrong answer, add to wrongQuestions array
+      // If wrong answer, add to wrongQuestions array and record it
       if (!isCorrect) {
         wrongQuestions.push(currentQuestion);
+        
+        // Record the incorrect answer in the backend
+        google.script.run
+          .withSuccessHandler(function(success) {
+            // Optional: You could add some visual feedback that the wrong answer was recorded
+            console.log("Wrong answer recorded:", success);
+          })
+          .withFailureHandler(function(error) {
+            console.error("Error recording wrong answer:", error);
+          })
+          .recordIncorrectAnswer(sl);
       }
       
       // Remove the question from the loadedQuestions array
