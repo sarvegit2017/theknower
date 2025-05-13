@@ -4,6 +4,8 @@
   var currentQuestion = null;
   var wrongQuestions = []; // Store the wrong questions
   var isRetryMode = false; // Track if we're in retry mode
+  var currentQuestionSL = null; // Track the current question's SL number
+  var currentAnswer = null; // Store the current answer
   
   // Load categories when the page loads
   window.onload = function() {
@@ -55,6 +57,8 @@
     
     // Reset state
     currentQuestion = null;
+    currentQuestionSL = null; // Reset current question SL
+    currentAnswer = null; // Reset current answer
     wrongQuestions = []; // Clear wrong questions when changing category
     isRetryMode = false; // Reset retry mode
     
@@ -136,6 +140,7 @@
     // Get a random question from the loaded questions
     var randomIndex = Math.floor(Math.random() * loadedQuestions.length);
     currentQuestion = loadedQuestions[randomIndex];
+    currentQuestionSL = currentQuestion.sl; // Store the current question's SL number
     
     // Display the selected question
     document.getElementById('currentQuestion').textContent = currentQuestion.question;
@@ -154,10 +159,18 @@
     document.getElementById('answerDisplay').style.display = 'none';
     document.getElementById('toggleAnswerButton').textContent = 'Show Answer';
     
+    // Clear any previous answer
+    document.getElementById('currentAnswer').textContent = '';
+    currentAnswer = null;
+    
     // Get the answer for this question
     google.script.run
       .withSuccessHandler(function(answer) {
-        document.getElementById('currentAnswer').textContent = answer;
+        // Only update the answer if we're still on the same question
+        if (currentQuestionSL === currentQuestion.sl) {
+          document.getElementById('currentAnswer').textContent = answer;
+          currentAnswer = answer; // Store the current answer
+        }
       })
       .getAnswerForQuestion(currentQuestion.sl);
   }
@@ -170,6 +183,21 @@
       // Show the answer
       answerDisplay.style.display = 'block';
       this.textContent = 'Hide Answer';
+      
+      // If the answer hasn't been fetched yet, fetch it now
+      if (!currentAnswer && currentQuestion) {
+        document.getElementById('currentAnswer').textContent = 'Loading...';
+        
+        google.script.run
+          .withSuccessHandler(function(answer) {
+            // Only update if we're still on the same question
+            if (currentQuestionSL === currentQuestion.sl) {
+              document.getElementById('currentAnswer').textContent = answer;
+              currentAnswer = answer;
+            }
+          })
+          .getAnswerForQuestion(currentQuestion.sl);
+      }
     } else {
       // Hide the answer
       answerDisplay.style.display = 'none';
@@ -228,8 +256,12 @@
         return question.sl !== sl;
       });
       
-      // Show the next random question
+      // Reset the current question state
       currentQuestion = null;
+      currentQuestionSL = null;
+      currentAnswer = null;
+      
+      // Show the next random question
       showRandomQuestion();
     }
   }

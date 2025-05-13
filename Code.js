@@ -424,15 +424,23 @@ function moveToExpertSheet(slNumber) {
     // Delete the question from datastore
     datastoreSheet.deleteRow(datastoreRowIndex + 1);
     
-    // Also remove from mastery_tracking sheet
+    // Always check and remove from mastery_tracking sheet
     const masterySheet = ss.getSheetByName('mastery_tracking');
     if (masterySheet) {
       const masteryData = masterySheet.getDataRange().getValues();
+      let masteryRowIndex = -1;
+      
+      // Find the question in mastery_tracking
       for (let i = 1; i < masteryData.length; i++) {
         if (masteryData[i][0] == slNumber) {
-          masterySheet.deleteRow(i + 1);
+          masteryRowIndex = i;
           break;
         }
+      }
+      
+      // If found, delete it
+      if (masteryRowIndex !== -1) {
+        masterySheet.deleteRow(masteryRowIndex + 1);
       }
     }
     
